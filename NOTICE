@@ -1,0 +1,15 @@
+mid-voice
+Copyright (c) 2026 Devrim Yasar
+
+The MIT licence in LICENSE covers the source code in this repository only.
+
+mid-voice downloads third-party model weights at runtime. Those carry their own
+terms, and two of the defaults are more restrictive than MIT:
+
+  Whisper (large-v3)          MIT
+  NLLB-200 (distilled-1.3B)   CC-BY-NC 4.0                     non-commercial
+  XTTS-v2                     Coqui Public Model License       non-commercial
+
+Running the default configuration therefore does not clear you for commercial
+use. See docs/MODELS.md for the licence of every model and for the option
+combination that keeps the whole stack permissive.

@@ -161,7 +161,7 @@ and the duck envelope.
 
 ## Licence
 
-Source code: [MIT](LICENSE).
+Source code: [MIT](LICENSE). See also [NOTICE](NOTICE).
 
 The model weights are **not** MIT and two of the defaults are non-commercial —
 NLLB-200 is CC-BY-NC 4.0 and XTTS-v2 is under the Coqui Public Model License.

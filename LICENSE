@@ -19,20 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-NOTE ON MODEL WEIGHTS
-
-This licence covers the source code in this repository only. mid-voice
-downloads third-party model weights at runtime; those carry their own terms,
-and some are more restrictive than MIT:
-
-  Whisper (large-v3)            MIT
-  NLLB-200 (distilled-1.3B)     CC-BY-NC 4.0        non-commercial
-  XTTS-v2                       Coqui Public Model  non-commercial
-                                License (CPML)
-
-Using the default configuration therefore does not clear you for commercial
-use. See docs/MODELS.md for the licence of every model and which options avoid
-the non-commercial ones.
