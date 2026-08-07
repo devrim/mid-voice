@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mid-voice — local video translation</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>%F0%9F%8E%99</text></svg>">
+<style>
+  :root {
+    --bg: #0e1014; --panel: #171a21; --panel-2: #1e222b; --line: #2a2f3a;
+    --text: #e7eaf0; --dim: #99a1b3; --accent: #6ea8fe; --accent-2: #3d7bfd;
+    --good: #4ade80; --bad: #f87171; --warn: #fbbf24; --radius: 12px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f6; --line: #dfe3ea;
+      --text: #14171d; --dim: #5c6577; --accent: #2563eb; --accent-2: #1d4ed8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 32px 20px 80px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 24px; }
+  .caps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .chip {
+    font-size: 12px; padding: 3px 10px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--dim);
+  }
+  .chip.on { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+  .chip.off { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+  #drop {
+    border: 2px dashed var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 46px 20px; text-align: center; cursor: pointer; transition: .15s;
+  }
+  #drop:hover, #drop.over { border-color: var(--accent); background: var(--panel-2); }
+  #drop.over { transform: scale(1.005); }
+  #drop .big { font-size: 17px; font-weight: 600; }
+  #drop .small { color: var(--dim); font-size: 13px; margin-top: 6px; }
+
+  details.opts { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  details.opts > summary {
+    cursor: pointer; padding: 12px 16px; font-size: 14px; font-weight: 600; list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  details.opts > summary::after { content: "▾"; color: var(--dim); }
+  details.opts[open] > summary::after { content: "▴"; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; padding: 4px 16px 18px; }
+  .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+  .field select, .field input[type=range] {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px;
+  }
+  .field .hint { font-size: 11.5px; color: var(--dim); margin-top: 5px; line-height: 1.4; }
+
+  .jobs { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
+  .job { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .job-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .job-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--panel-2); color: var(--dim); border: 1px solid var(--line); }
+  .status.running { color: var(--accent); } .status.done { color: var(--good); }
+  .status.error, .status.cancelled { color: var(--bad); }
+  .bar { height: 5px; background: var(--panel-2); }
+  .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent-2), var(--accent)); transition: width .3s; }
+  .job-body { padding: 12px 16px 16px; font-size: 13.5px; }
+  .step { color: var(--dim); display: flex; justify-content: space-between; gap: 12px; }
+  .step b { color: var(--text); font-weight: 600; }
+  .detail { color: var(--dim); font-size: 12.5px; margin-top: 6px; font-style: italic;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .err { color: var(--bad); margin-top: 8px; font-size: 13px; white-space: pre-wrap; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  button, a.btn {
+    font: inherit; font-size: 13px; padding: 7px 13px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text); text-decoration: none;
+  }
+  button:hover, a.btn:hover { border-color: var(--accent); color: var(--accent); }
+  a.btn.primary { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+  a.btn.primary:hover { filter: brightness(1.1); color: #fff; }
+  video { width: 100%; border-radius: 10px; margin-top: 12px; background: #000; }
+  pre.log {
+    margin: 10px 0 0; padding: 10px 12px; background: var(--panel-2); border-radius: 8px;
+    font-size: 11.5px; line-height: 1.5; max-height: 190px; overflow: auto; color: var(--dim);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap;
+  }
+  .tx { max-height: 260px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .tx div { padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .tx div:last-child { border-bottom: 0; }
+  .tx .t { color: var(--dim); font-family: ui-monospace, monospace; font-size: 11px; margin-right: 8px; }
+  .tx .o { color: var(--dim); display: block; font-size: 12px; margin-top: 2px; }
+  footer { margin-top: 40px; color: var(--dim); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>mid<span>·</span>voice</h1></header>
+  <div class="sub">Drop a video. It gets transcribed, translated to English, and re-voiced — all on this machine.</div>
+  <div class="caps" id="caps"></div>
+
+  <div id="drop">
+    <div class="big">Drop a video or audio file here</div>
+    <div class="small">or click to choose &nbsp;·&nbsp; mp4, mkv, mov, webm, mp3, wav…</div>
+    <input type="file" id="file" hidden accept="video/*,audio/*">
+  </div>
+
+  <details class="opts" open>
+    <summary>Options</summary>
+    <div class="grid">
+      <div class="field">
+        <label for="voice">Voice</label>
+        <select id="voice">
+          <option value="clone">Clone the original speaker</option>
+          <option value="none">No dub — subtitles only</option>
+        </select>
+        <div class="hint">Cloning cuts a reference clip from each speaker turn, so multi-speaker videos keep distinct voices.</div>
+      </div>
+      <div class="field">
+        <label for="subtitles">Subtitles</label>
+        <select id="subtitles">
+          <option value="soft">Embedded track (selectable)</option>
+          <option value="burn">Burned into the picture</option>
+          <option value="none">None</option>
+        </select>
+        <div class="hint">Soft subs also come out as a separate .srt file.</div>
+      </div>
+      <div class="field">
+        <label for="mix_mode">Original audio</label>
+        <select id="mix_mode">
+          <option value="duck">Duck under the dub</option>
+          <option value="overlay">Keep audible (voice-over)</option>
+          <option value="replace">Remove entirely</option>
+        </select>
+        <div class="hint">Ducking drops the original only while the dub is speaking, so music survives the gaps.</div>
+      </div>
+      <div class="field">
+        <label for="subtitle_lang">Subtitle languages</label>
+        <select id="subtitle_lang">
+          <option value="en">English only</option>
+          <option value="both">English + original</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="source_lang">Source language</label>
+        <select id="source_lang"><option value="">Detect automatically</option></select>
+        <div class="hint">Set this if detection guesses wrong on short or noisy clips.</div>
+      </div>
+      <div class="field">
+        <label for="translator">Translator</label>
+        <select id="translator">
+          <option value="auto">Auto</option>
+          <option value="nllb">NLLB-200 (better quality)</option>
+          <option value="whisper">Whisper translate (faster)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="max_speedup">Max speed-up to fit timing — <b id="spd">1.5×</b></label>
+        <input type="range" id="max_speedup" min="1" max="2" step="0.05" value="1.5">
+        <div class="hint">English lines are often longer than the original. Higher fits better; too high sounds rushed.</div>
+      </div>
+    </div>
+  </details>
+
+  <div class="jobs" id="jobs"></div>
+  <footer>Runs entirely offline · Whisper + NLLB-200 + XTTS-v2</footer>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const drop = $("#drop"), fileInput = $("#file"), jobsEl = $("#jobs");
+const streams = new Map(); const state = new Map();
+
+// ---- capabilities ----------------------------------------------------------
+fetch("/api/config").then(r => r.json()).then(cfg => {
+  const c = cfg.capabilities, chips = [];
+  chips.push(["ffmpeg", c.ffmpeg]);
+  chips.push([c.gpu ? c.gpu.replace(/NVIDIA GeForce /, "") : "CPU only", c.cuda]);
+  chips.push(["whisper " + cfg.whisper_model, true]);
+  chips.push(["voice cloning", c.tts]);
+  chips.push(["NLLB-200", c.nllb]);
+  $("#caps").innerHTML = chips.map(([label, ok]) =>
+    `<span class="chip ${ok ? "on" : "off"}">${ok ? "●" : "○"} ${esc(label)}</span>`).join("");
+
+  const sel = $("#source_lang");
+  for (const l of cfg.languages) sel.insertAdjacentHTML("beforeend", `<option value="${l.code}">${esc(l.name)}</option>`);
+  if (!c.tts) { $("#voice").value = "none"; $("#voice").querySelector('[value=clone]').textContent = "Clone (not installed)"; }
+});
+
+$("#max_speedup").addEventListener("input", e => $("#spd").textContent = (+e.target.value).toFixed(2) + "×");
+
+// ---- upload ----------------------------------------------------------------
+drop.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => { for (const f of fileInput.files) upload(f); fileInput.value = ""; });
+["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("over");
+}));
+["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) drop.classList.remove("over");
+}));
+document.addEventListener("drop", e => { for (const f of e.dataTransfer.files) upload(f); });
+
+function options() {
+  return {
+    voice: $("#voice").value, subtitles: $("#subtitles").value,
+    subtitle_lang: $("#subtitle_lang").value, mix_mode: $("#mix_mode").value,
+    source_lang: $("#source_lang").value, translator: $("#translator").value,
+    max_speedup: parseFloat($("#max_speedup").value),
+  };
+}
+
+function upload(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("options", JSON.stringify(options()));
+
+  // XHR rather than fetch: it reports upload progress, and a multi-gigabyte
+  // video otherwise sits at 0% with no sign of life.
+  const ph = { id: "up-" + Math.random().toString(36).slice(2), filename: file.name,
+    status: "uploading", step_label: "Uploading", progress: 0, logs: [], result: {}, version: 0 };
+  render(ph);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/jobs");
+  xhr.upload.onprogress = e => {
+    if (!e.lengthComputable) return;
+    ph.progress = e.loaded / e.total;
+    ph.detail = `${fmtSize(e.loaded)} of ${fmtSize(e.total)}`;
+    ph.version++;
+    render(ph);
+  };
+  const fail = msg => {
+    ph.status = "error"; ph.error = msg; ph.step_label = "Upload failed";
+    ph.progress = 0; ph.version++; render(ph);
+  };
+  xhr.onload = () => {
+    if (xhr.status >= 400) {
+      let detail = xhr.statusText;
+      try { detail = JSON.parse(xhr.responseText).detail || detail; } catch {}
+      return fail(detail);
+    }
+    document.getElementById(ph.id)?.remove();
+    state.delete(ph.id);
+    const job = JSON.parse(xhr.responseText);
+    render(job); watch(job.id);
+  };
+  xhr.onerror = () => fail("Network error during upload");
+  xhr.onabort = () => fail("Upload cancelled");
+  ph.xhr = xhr;
+  xhr.send(fd);
+}
+
+// ---- live updates ----------------------------------------------------------
+function watch(id) {
+  if (streams.has(id)) return;
+  const es = new EventSource(`/api/jobs/${id}/events`);
+  streams.set(id, es);
+  es.onmessage = e => {
+    const job = JSON.parse(e.data);
+    render(job);
+    if (["done", "error", "cancelled"].includes(job.status)) { es.close(); streams.delete(id); }
+  };
+  es.onerror = () => { es.close(); streams.delete(id); };
+}
+
+// ---- rendering -------------------------------------------------------------
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function fmtSize(b) {
+  if (b >= 1e9) return (b / 1e9).toFixed(2) + " GB";
+  if (b >= 1e6) return (b / 1e6).toFixed(1) + " MB";
+  if (b >= 1e3) return (b / 1e3).toFixed(1) + " KB";
+  return b + " B";
+}
+function ts(s) { const m = Math.floor(s / 60), r = (s % 60).toFixed(1).padStart(4, "0"); return `${m}:${r}`; }
+
+function render(job) {
+  const prev = state.get(job.id) || {};
+  state.set(job.id, job);
+  let el = document.getElementById(job.id);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "job"; el.id = job.id;
+    jobsEl.prepend(el);
+  }
+  const pct = Math.round((job.progress || 0) * 100);
+  const done = job.status === "done";
+  const arts = (job.result && job.result.artifacts) || [];
+  const video = arts.find(a => a.kind === "video");
+  const segs = (job.result && job.result.segments) || [];
+  const openLog = el.querySelector("details.logbox")?.open ?? (job.status === "running");
+  const openTx = el.querySelector("details.txbox")?.open ?? false;
+
+  el.innerHTML = `
+    <div class="job-head">
+      <div class="job-name" title="${esc(job.filename)}">${esc(job.filename)}</div>
+      ${job.result?.language_name ? `<span class="status">${esc(job.result.language_name)} → English</span>` : ""}
+      <span class="status ${job.status}">${esc(job.status)}</span>
+    </div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="job-body">
+      <div class="step"><b>${esc(job.step_label || "")}</b><span>${pct}%${job.elapsed ? " · " + job.elapsed + "s" : ""}</span></div>
+      ${job.detail ? `<div class="detail">${esc(job.detail)}</div>` : ""}
+      ${job.error ? `<div class="err">${esc(job.error)}</div>` : ""}
+      ${done && video ? `<video controls preload="metadata" src="${video.url}"></video>` : ""}
+      <div class="row">
+        ${arts.map(a => `<a class="btn ${a.kind === "video" || a.kind === "audio" ? "primary" : ""}" href="${a.url}" download>↓ ${esc(a.label)} <span style="opacity:.6">${fmtSize(a.size)}</span></a>`).join("")}
+        ${["queued", "running", "uploading"].includes(job.status) ? `<button data-cancel="${job.id}">Cancel</button>` : ""}
+        ${["done", "error", "cancelled"].includes(job.status) ? `<button data-del="${job.id}">Remove</button>` : ""}
+      </div>
+      ${segs.length ? `<details class="txbox" ${openTx ? "open" : ""}><summary style="cursor:pointer;color:var(--dim);font-size:13px;margin-top:12px">Transcript (${segs.length} lines)</summary>
+        <div class="tx">${segs.map(s => `<div><span class="t">${ts(s.start)}</span>${esc(s.text)}${s.source_text && s.source_text !== s.text ? `<span class="o">${esc(s.source_text)}</span>` : ""}</div>`).join("")}</div></details>` : ""}
+      ${(job.logs || []).length ? `<details class="logbox" ${openLog ? "open" : ""}><summary style="cursor:pointer;color:var(--dim);font-size:13px;margin-top:12px">Log</summary>
+        <pre class="log">${esc(job.logs.join("\n"))}</pre></details>` : ""}
+    </div>`;
+
+  const log = el.querySelector("pre.log");
+  if (log && (prev.version === undefined || job.version !== prev.version)) log.scrollTop = log.scrollHeight;
+}
+
+jobsEl.addEventListener("click", async e => {
+  const cancel = e.target.closest("[data-cancel]"), del = e.target.closest("[data-del]");
+  if (cancel) {
+    const id = cancel.dataset.cancel, pending = state.get(id);
+    // Still uploading? Abort the request; the server has no job for it yet.
+    if (pending?.xhr) pending.xhr.abort();
+    else await fetch(`/api/jobs/${id}/cancel`, { method: "POST" });
+  }
+  if (del) {
+    await fetch(`/api/jobs/${del.dataset.del}`, { method: "DELETE" });
+    document.getElementById(del.dataset.del)?.remove();
+    state.delete(del.dataset.del);
+  }
+});
+
+// Pick up jobs still running from a previous page load.
+fetch("/api/jobs").then(r => r.json()).then(d => {
+  for (const job of d.jobs.slice().reverse()) {
+    render(job);
+    if (["queued", "running"].includes(job.status)) watch(job.id);
+  }
+});
+</script>
+</body>
+</html>

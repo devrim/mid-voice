@@ -1,0 +1,47 @@
+[project]
+name = "mid-voice"
+version = "0.1.0"
+description = "Local video translation + dubbing tool. Drop a video, get an English-dubbed version with optional subtitles."
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+    "faster-whisper>=1.1.0",
+    "numpy>=1.26,<2.3",
+    "soundfile>=0.12",
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+# Neural MT (NLLB-200). Optional: whisper's own translate task works without this.
+mt = [
+    # transformers 5.x dropped isin_mps_friendly, which coqui-tts imports.
+    # Keep the 4.x line so `mt` and `tts` can coexist in one environment.
+    "transformers>=4.57,<5",
+    "sentencepiece>=0.2",
+    "torch>=2.4",
+]
+# Voice-cloning TTS (XTTS-v2 via the maintained Coqui fork).
+tts = [
+    "coqui-tts>=0.27,<0.28",
+    "transformers>=4.57,<5",
+    "torch>=2.4",
+    "torchaudio>=2.4",
+    "torchcodec>=0.8",  # coqui-tts uses it for audio IO from torch 2.9 on
+]
+# ctranslate2 (which runs Whisper) is built against CUDA 12 and dlopens
+# libcublas.so.12 / libcudnn*.so.9 by soname. Recent torch wheels ship the
+# CUDA 13 runtime instead, which does not satisfy those, so carry cu12
+# alongside. Without this, Whisper silently falls back to CPU.
+cuda = [
+    "nvidia-cublas-cu12>=12.4; sys_platform == 'linux'",
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'linux'",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
